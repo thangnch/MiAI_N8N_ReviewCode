@@ -1,0 +1,207 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "owner": {
+          "__rl": true,
+          "value": "https://github.com/thangnch",
+          "mode": "url"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "MiAI_N8N_ReviewCode",
+          "mode": "list",
+          "cachedResultName": "MiAI_N8N_ReviewCode",
+          "cachedResultUrl": "https://github.com/thangnch/MiAI_N8N_ReviewCode"
+        },
+        "events": [
+          "pull_request"
+        ],
+        "options": {}
+      },
+      "type": "n8n-nodes-base.githubTrigger",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        -40
+      ],
+      "id": "7d900810-8f77-45a5-bc18-efab482354d9",
+      "name": "Github Trigger",
+      "webhookId": "e82f8441-7b89-4faf-b8d7-8c1755da7687",
+      "credentials": {
+        "githubApi": {
+          "id": "201x6GELWjm7xVJN",
+          "name": "GitHub account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.body.pull_request.url }}/files",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -220,
+        -40
+      ],
+      "id": "469c79ed-e131-40cc-bbd4-9a77a393d429",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "jsCode": "const uploadedItems = $input.all().map(entry => entry.json);\n\n// Build combniedDiffs\nlet combinedDiffs = '';\n\nfor (const uploadedFile of uploadedItems) {\n  combinedDiffs += `### File : ${uploadedFile.filename}\\n\\n`;\n\n  if (uploadedFile.patch) {\n    const sanitizedPatch = uploadedFile.patch.replace(/```/g, \"''\");\n\n    combinedDiffs += \"```diff\\n\";\n    combinedDiffs += sanitizedPatch;\n    combinedDiffs += \"\\n```\\n\";\n  } else {\n    combinedDiffs += \"No patch available (probably a binary file)\";\n  }\n\n  combinedDiffs += \"\\n---\\n\\n\";\n}\n\n\n// Build prompt\nconst reviewInstructions = `\nYou are a senior Python developer. \nPlease review the following code changes in these files :\n\n${combinedDiffs}\n\n---\nYour mission:\n- Adhere to the team's coding standards:\n+ Variables should follow camelCase naming convention and be intuitive.\n+ String variables should be defined before print.\n- Go through the code changes, file by file, focusing on meaningful updates.\n- Provide inline feedback directly on the lines where modifications occur.\n- Skip any files that don't contain a patch.\n- Do not duplicate the filename or code snippets in your comments.\n- Focus your comments solely on evaluating the code, without rewriting or editing it.\n`;\n\nreturn [\n  {\n    json: {\n      user_message: reviewInstructions.trim()\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        -40
+      ],
+      "id": "1589b367-bfda-4a10-9ba3-40f564e7a201",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_message }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        220,
+        -40
+      ],
+      "id": "292e46ff-759b-48c5-99da-fa12882cbc50",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-1.5-flash",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        140,
+        200
+      ],
+      "id": "eda2555d-6fdb-4c67-9a16-187a294597bf",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "9mz0Ceb1o9x4uaS1",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "review",
+        "owner": {
+          "__rl": true,
+          "value": "https://github.com/thangnch",
+          "mode": "url"
+        },
+        "repository": {
+          "__rl": true,
+          "value": "MiAI_N8N_ReviewCode",
+          "mode": "list",
+          "cachedResultName": "MiAI_N8N_ReviewCode",
+          "cachedResultUrl": "https://github.com/thangnch/MiAI_N8N_ReviewCode"
+        },
+        "pullRequestNumber": "={{ $('Github Trigger').item.json.body.number }}",
+        "event": "comment",
+        "body": "=This is comment from N8N Github Bot. Please review before make any decision.\n----------\n{{ $json.output }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        -40
+      ],
+      "id": "4c700037-9938-4c06-851a-aa2e14073d80",
+      "name": "GitHub",
+      "webhookId": "346a8334-6055-45ba-95ed-ebb11bcb708c",
+      "credentials": {
+        "githubApi": {
+          "id": "201x6GELWjm7xVJN",
+          "name": "GitHub account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Github Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "837aed51-161b-4f7b-80b6-8faf1db22f01",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b967adacda69d586fe86862185837a7f40656e3405cce5072fe9b98eb695075f"
+  },
+  "id": "faVGcNX8qahZoPku",
+  "tags": []
+}
