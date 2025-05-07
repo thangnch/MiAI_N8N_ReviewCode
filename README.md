@@ -1,7 +1,7 @@
 # MiAI_N8N_ReviewCode
 Demo of using N8N with Agent to review code
 
-Video link:  https://youtu.be/_52-kz08LvU
+Video link:  https://youtu.be/JKxO0ErZYGM
 
 #MìAI <br>
 Fanpage: http://facebook.com/miaiblog<br>
